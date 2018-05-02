@@ -132,29 +132,26 @@ var goToOrigin = _.once(function(lat, lng) {
   map.flyTo([lat, lng], 14);
 });
 
-
+var origincoor = {"lat":0,"lng":0};
 /* Given a lat and a long, we should create a marker, store it
  *  somewhere, and add it to the map
  */
 var updatePosition = function(lat, lng, updated) {
   if (state.position.marker) { map.removeLayer(state.position.marker); }
-  state.position.marker = L.circleMarker([lat, lng], {color: "blue"});
-  state.position.updated = updated;
-  state.position.marker.addTo(map);
+  state.position.marker = L.circleMarker([lat, lng], {color: "red"});
   goToOrigin(lat, lng);
 };
 
 $(document).ready(function() {
-  /* This 'if' check allows us to safely ask for the user's current position */
   if ("geolocation" in navigator) {
     navigator.geolocation.getCurrentPosition(function(position) {
       updatePosition(position.coords.latitude, position.coords.longitude, position.timestamp);
+      origincoor.lat = position.coords.latitude;
+      origincoor.lng = position.coords.longitude;
     });
   } else {
     alert("Unable to access geolocation API!");
   }
-
-
   /* Every time a key is lifted while typing in the #dest input, disable
    * the #calculate button if no text is in the input
    */
@@ -166,12 +163,31 @@ $(document).ready(function() {
     }
   });
 
-  // click handler for the "calculate" button (probably you want to do something with this)
   $("#calculate").click(function(e) {
     var dest = $('#dest').val();
-    console.log(dest);
+    var Url = 'https://api.mapbox.com/geocoding/v5/mapbox.places/' + dest + '.json?access_token=pk.eyJ1Ijoid2NoZW5yYW4iLCJhIjoiY2pmNGNpc2I4MTBzdDJ3bXFpY29ya216cyJ9.MYjrBjhUl9-lj2WU7Ekdww';
+    $.getJSON(url).done(function(data) {
+        var destCord = data.features[0].geometry.coordinates;
+        updatePosition(destCord[1],destCord[0]);
+        var ln = data.features[0].geometry.coordinates[0];
+        var la = data.features[0].geometry.coordinates[1];
+        var routeJson = {
+          "locations":[
+          {"lat":origincoor.lat,"lon":origincoor.lon},
+          {"lat":la,"lon":ln},
+          ],
+          "costing":"auto",
+          "directions_options":{"units":"miles"}
+        };
+        var route = "https://api.mapbox.com/directions/v5/mapbox/cycling/" +JSON.stringify(routeJson)+'?access_token=pk.eyJ1Ijoid2NoZW5yYW4iLCJhIjoiY2pmNGNpc2I4MTBzdDJ3bXFpY29ya216cyJ9.MYjrBjhUl9-lj2WU7Ekdww';
+        $.ajax(route).done(function(rdata){
+          var array = decode(rdata.trip.legs[0].shape);
+          var flip = _.map(array,
+            function(layer){
+              return [layer[0],layer[1]];
+          });
+          var myRoute = L.polyline(flip, {color: 'tomato'}).addTo(map);
+        });
+    });
   });
-
 });
-
-

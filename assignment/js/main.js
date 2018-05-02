@@ -55,7 +55,7 @@ var state = {
   count: 0,
   markers: [],
   line: undefined,
-}
+};
 
 /** ---------------
 Map configuration
@@ -98,12 +98,11 @@ function. That being said, you are welcome to make changes if it helps.
 var resetApplication = function() {
   _.each(state.markers, function(marker) { map.removeLayer(marker) })
   map.removeLayer(state.line);
-
   state.count = 0;
-  state.markers = []
+  state.markers = [];
   state.line = undefined;
   $('#button-reset').hide();
-}
+};
 
 $('#button-reset').click(resetApplication);
 
@@ -117,6 +116,29 @@ map.on('draw:created', function (e) {
   var type = e.layerType; // The type of shape
   var layer = e.layer; // The Leaflet layer for the shape
   var id = L.stamp(layer); // The unique Leaflet ID for the
+  if(state.count === 0){
+    state.marker1 = layer;
+    layer.addTo(map);
+    state.routeJson.locations[0] = _.object(["lat","lon"], _.values(layer._latlng) );
+    state.count += 1;
+    } else if (state.count === 1) {
+        state.marker2 = layer;
+        layer.addTo(map);
+        state.routeJson.locations[1] = _.object(["lat","lon"], _.values(layer._latlng) );
+        //console.log(state.routeJson.locations);
+        var route ='https://matrix.mapzen.com/optimized_route?json='+JSON.stringify(state.routeJson)+'&api_key=mapzen-p53chPt';
+        $.ajax(route).done(function(rdata){
+              var array = decode(rdata.trip.legs[0].shape);
+              var flip = _.map(array,
+                function(layer){
+                  return [layer[0],layer[1]];
+              });
+              state.line  = L.polyline(flip, {color: 'tomato'}).addTo(map);
+        });
+        $('#button-reset').show();
+        $('.leaflet-draw-draw-marker').hide();
+   }
 
-  console.log('Do something with the layer you just created:', layer, layer._latlng);
+
+  //console.log('Do something with the layer you just created', layer, layer._latlng);
 });
